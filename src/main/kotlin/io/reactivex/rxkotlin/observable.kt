@@ -1,12 +1,12 @@
 package io.reactivex.rxkotlin
 
 import io.reactivex.Observable
-import io.reactivex.functions.BiFunction
-import io.reactivex.functions.Function3
+import io.reactivex.ObservableSource
 
 
 fun BooleanArray.toObservable(): Observable<Boolean> = asIterable().toObservable()
 fun ByteArray.toObservable(): Observable<Byte> = asIterable().toObservable()
+fun CharArray.toObservable(): Observable<Char> = asIterable().toObservable()
 fun ShortArray.toObservable(): Observable<Short> = asIterable().toObservable()
 fun IntArray.toObservable(): Observable<Int> = asIterable().toObservable()
 fun LongArray.toObservable(): Observable<Long> = asIterable().toObservable()
@@ -65,18 +65,6 @@ private fun <T : Any> Iterator<T>.toIterable() = object : Iterable<T> {
     override fun iterator(): Iterator<T> = this@toIterable
 }
 
-/**
- * Combine latest operator that produces [Pair]
- */
-fun <T : Any, R : Any> Observable<T>.combineLatest(observable: Observable<R>): Observable<Pair<T, R>>
-        = Observable.combineLatest(this, observable, BiFunction(::Pair))
-
-/**
- * Combine latest operator that produces [Triple]
- */
-fun <T : Any, R : Any, U : Any> Observable<T>.combineLatest(observable1: Observable<R>, observable2: Observable<U>): Observable<Triple<T, R, U>>
-        = Observable.combineLatest(this, observable1, observable2, Function3(::Triple))
-
 // EXTENSION FUNCTION OPERATORS
 
 /**
@@ -96,3 +84,14 @@ fun <T : Any> Observable<Observable<T>>.switchLatest() = switchMap { it }
 
 fun <T : Any> Observable<Observable<T>>.switchOnNext(): Observable<T> = Observable.switchOnNext(this)
 
+/**
+ * Collects `Pair` emission into a `Map`
+ */
+fun <A: Any, B: Any> Observable<Pair<A,B>>.toMap() = toMap({it.first},{it.second})
+
+/**
+ * Collects `Pair` emission into a multimap
+ */
+fun <A: Any, B: Any> Observable<Pair<A,B>>.toMultimap() = toMultimap({it.first},{it.second})
+
+fun  <T : Any> Iterable<ObservableSource<T>>.concatAll() = Observable.concat(this)

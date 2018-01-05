@@ -1,12 +1,15 @@
 package io.reactivex.rxkotlin
 
 import io.reactivex.Observable
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
+import io.reactivex.observers.LambdaConsumerIntrospection
+import io.reactivex.observers.TestObserver
+import org.junit.Assert
+import org.junit.Assert.*
 import org.junit.Ignore
 import org.junit.Test
 import java.math.BigDecimal
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class ObservableTest {
 
@@ -173,20 +176,85 @@ class ObservableTest {
                 .assertComplete()
     }
 
-    @Test fun combineLatestPair() {
-        Observable.just(3)
-                .combineLatest(Observable.just(10))
-                .map { (x, y) -> x * y }
-                .test()
-                .assertValues(30)
+    @Test
+    fun testSubscribeBy() {
+        val first = AtomicReference<String>()
+
+        Observable.just("Alpha")
+                .subscribeBy {
+                    first.set(it)
+                }
+        assertTrue(first.get() == "Alpha")
     }
 
-    @Test fun combineLatestTriple() {
-        Observable.just(3)
-                .combineLatest(Observable.just(10), Observable.just(20))
-                .map { (x, y, z) -> x * y * z }
-                .test()
-                .assertValues(600)
+    @Test
+    fun testSubscribeByErrorIntrospection() {
+        val disposable = Observable.just(Unit)
+                .subscribeBy() as LambdaConsumerIntrospection
+        assertFalse(disposable.hasCustomOnError())
     }
 
+    @Test
+    fun testSubscribeByErrorIntrospectionCustom() {
+        val disposable = Observable.just(Unit)
+                .subscribeBy(onError = {}) as LambdaConsumerIntrospection
+        assertTrue(disposable.hasCustomOnError())
+    }
+
+    @Test
+    @Ignore("Fix with adding support for LambdaConsumerIntrospection - #151")
+    fun testSubscribeByErrorIntrospectionDefaultWithOnComplete() {
+        val disposable = Observable.just(Unit)
+                .subscribeBy(onComplete = {}) as LambdaConsumerIntrospection
+        assertFalse(disposable.hasCustomOnError())
+    }
+
+    @Test
+    fun testBlockingSubscribeBy() {
+        val first = AtomicReference<String>()
+
+        Observable.just("Alpha")
+                .blockingSubscribeBy {
+                    first.set(it)
+                }
+        assertTrue(first.get() == "Alpha")
+    }
+
+    @Test
+    fun testPairZip() {
+
+        val testObserver = TestObserver<Pair<String,Int>>()
+
+        Observables.zip(
+            Observable.just("Alpha", "Beta", "Gamma"),
+                Observable.range(1,4)
+        ).subscribe(testObserver)
+
+        testObserver.assertValues(Pair("Alpha",1), Pair("Beta",2), Pair("Gamma",3))
+    }
+
+    @Test
+    fun testTripleZip() {
+
+        val testObserver = TestObserver<Triple<String,Int,Int>>()
+
+        Observables.zip(
+                Observable.just("Alpha", "Beta", "Gamma"),
+                Observable.range(1,4),
+                Observable.just(100,200,300)
+        ).subscribe(testObserver)
+
+        testObserver.assertValues(Triple("Alpha",1, 100), Triple("Beta",2, 200), Triple("Gamma",3, 300))
+    }
+
+    @Test fun testConcatAll() {
+        var counter = 0
+        (0 until 10)
+                .map { Observable.just(counter++, counter++, counter++) }
+                .concatAll()
+                .toList()
+                .subscribe { result ->
+                    Assert.assertEquals((0 until 30).toList(), result)
+                }
+    }
 }
